@@ -1,0 +1,96 @@
+# docker-compose build && docker-compose up -d
+# If "docker-compose logs ckan" shows DB not ready, run "docker-compose restart ckan" a few times.
+version: "3.5"
+
+# volumes:
+#   ckan_config:
+#   ckan_home:
+#   ckan_storage:
+#   pg_data:
+
+services:
+  # ckan:
+  #   container_name: ckan
+  #   build:
+  #     context: ../../
+  #     args:
+  #         - CKAN_SITE_URL=${CKAN_SITE_URL}
+  #   links:
+  #     - db
+  #     - solr
+  #     - redis
+  #   ports:
+  #     - "0.0.0.0:${CKAN_PORT}:5000"
+  #   environment:
+  #     # Defaults work with linked containers, change to use own Postgres, SolR, Redis or Datapusher
+  #     - CKAN_SQLALCHEMY_URL=postgresql://ckan:${POSTGRES_PASSWORD}@db/ckan
+  #     - CKAN_DATASTORE_WRITE_URL=postgresql://ckan:${POSTGRES_PASSWORD}@db/datastore
+  #     - CKAN_DATASTORE_READ_URL=postgresql://datastore_ro:${DATASTORE_READONLY_PASSWORD}@db/datastore
+  #     - CKAN_SOLR_URL=http://solr:8983/solr/ckan
+  #     - CKAN_REDIS_URL=redis://redis:6379/1
+  #     - CKAN_DATAPUSHER_URL=http://datapusher:8800
+  #     - CKAN_SITE_URL=${CKAN_SITE_URL}
+  #     - CKAN_MAX_UPLOAD_SIZE_MB=${CKAN_MAX_UPLOAD_SIZE_MB}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #     - DS_RO_PASS=${DATASTORE_READONLY_PASSWORD}
+
+  #   volumes:
+  #     - ckan_config:/etc/ckan
+  #     - ckan_home:/usr/lib/ckan
+  #     - ckan_storage:/var/lib/ckan
+
+  ckan-dev_datapusher:
+    container_name: ${CKAN_SITE_ID}_datapusher
+    hostname: ${CKAN_SITE_ID}_datapusher
+    image: clementmouchet/datapusher
+    ports:
+      - "127.0.0.1:${DATAPUSHER_PORT}:8800"
+    environment:
+      - TZ=Asia/Bangkok
+
+  ckan-dev_db:
+    container_name: ${CKAN_SITE_ID}_db
+    hostname: ${CKAN_SITE_ID}_db
+    build:
+      context: ./
+      dockerfile: postgresql/Dockerfile
+      args:
+        - DS_RO_PASS=${DATASTORE_READONLY_PASSWORD}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    environment:
+      - DS_RO_PASS=${DATASTORE_READONLY_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=Asia/Bangkok
+    volumes:
+      - ./data/postgres/data:/var/lib/postgresql/data
+    ports: 
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+
+  ckan-dev_solr:
+    container_name: ${CKAN_SITE_ID}_solr
+    hostname: ${CKAN_SITE_ID}_solr
+    build:
+      context: ./
+      dockerfile: solr/Dockerfile
+    ports: 
+      - "127.0.0.1:${SOLR_PORT}:8983"
+    environment: 
+      - TZ=Asia/Bangkok
+#    volumes: 
+#      - ./data/solr/ckan:/opt/solr/server/solr/ckan
+
+
+  ckan-dev_redis:
+    container_name: ${CKAN_SITE_ID}_redis
+    hostname: ${CKAN_SITE_ID}_redis
+    image: redis:latest
+    ports: 
+      - "127.0.0.1:${REDIS_PORT}:6379"
+    environment: 
+      - TZ=Asia/Bangkok
+#    volumes: 
+#      - ./data/redis/data:/data
+
+networks: 
+  default:
+    name: ${CKAN_SITE_ID}-net
